@@ -35,7 +35,7 @@ class MyWebServer(socketserver.BaseRequestHandler):
 
     def handle(self):
         response = b''
-        try: # ensure the server does not die on any runtime errors, handle 2xx and 3xx here
+        try:
             request = self.request.recv(1024).strip()
             if len(request) == 0: # client terminated connection
                 return
@@ -48,8 +48,8 @@ class MyWebServer(socketserver.BaseRequestHandler):
                 response = self.respond_301_Moved_Permanently(resource)
                 return
             response = self.respond_200_OK(resource)
-        except NotFound404Exception as exception:
-            response = self.respond_404_Not_Found(exception)
+        except FileNotFoundError as exception:
+            response = self.respond_404_Not_Found(exception.filename)
         except Exception as exception: # 5xx here
             response = self.respond_500_Internal_Server_Error()
             raise exception # base class handles any escalated exceptions
@@ -90,27 +90,20 @@ class MyWebServer(socketserver.BaseRequestHandler):
                 headers[line.split(':')[0].strip()]: line.split(':')[1].strip()
         return method, resource, headers
     
-    # read files
     def read_file(self, resource):
         read_file = ""
         if resource[-1] == "/":
             resource += "index.html"
         extension = resource.split('.')[1]
-        try:
-            with open(f"./{self.__SERVE_DIRECTORY}/{resource}", "r") as file:
-                read_file += file.read()
-            return read_file, extension
-        except FileNotFoundError:
-            raise NotFound404Exception(resource)
+        with open(f"./{self.__SERVE_DIRECTORY}/{resource}", "r") as file:
+            read_file += file.read()
+        return read_file, extension
     
     def has_file_extension(self, resource):
         return resource.rfind('.') > resource.rfind('/')
 
     def has_trailing_slash(self, resource):
         return resource[-1] == "/"
-
-class NotFound404Exception(Exception):
-    pass
 
 if __name__ == "__main__":
     HOST, PORT = "localhost", 8080
